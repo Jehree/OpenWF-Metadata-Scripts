@@ -23,13 +23,13 @@ public static class Main
     public static string UIStuff = $"{DataDumpPath}/Lotus/Types/StoreItems/SuitCustomizations/";
     public static string RecipesPath = $"{DataDumpPath}/Lotus/StoreItems/Types/Recipes";
 
-    public static List<string> GetAllItemNames(string dirPath, List<string>? propFilter = default)
+    public static List<string> GetAllItemNames(string dirPath, Func<string, bool>? jsonDataFilter = null, Func<string, bool>? itemNameFilter = null)
     {
         List<string> allNames = [];
 
         foreach (string filePath in Directory.GetFiles(dirPath))
         {
-            if (!PassesFilterCheck(filePath, propFilter)) continue;
+            if (!PassesFilterCheck(filePath, jsonDataFilter, itemNameFilter)) continue;
 
             string storeItemName = GetItemName(filePath);
 
@@ -40,21 +40,25 @@ public static class Main
 
         foreach (string subdir in Directory.GetDirectories(dirPath))
         { 
-            allNames.AddRange(GetAllItemNames(subdir));
+            allNames.AddRange(GetAllItemNames(subdir, jsonDataFilter, itemNameFilter));
         }
 
         return allNames;
     }
 
-    public static bool PassesFilterCheck(string filePath, List<string>? propFilter)
+    public static bool PassesFilterCheck(string filePath, Func<string, bool>? jsonDataFilter = null, Func<string, bool>? itemNameFilter = null)
     {
-        string jsonData = File.ReadAllText(filePath);
-
-        if (propFilter == null) return true;
-
-        foreach (string seg in propFilter)
+        if (itemNameFilter != null)
         {
-            if (!jsonData.Contains(seg)) return false;
+            string itemName = GetItemName(filePath);
+            if (!itemNameFilter(itemName)) return false;
+        }
+
+        if (jsonDataFilter != null)
+        {
+            string jsonData = File.ReadAllText(filePath);
+
+            if (!jsonDataFilter(jsonData)) return false;
         }
 
         return true;
@@ -104,7 +108,7 @@ public static class Main
 
     public static void PrintAllRecipeNames()
     {
-        List<string> recipeNames = GetAllItemNames(RecipesPath, ["BuildTime"]);
+        List<string> recipeNames = GetAllItemNames($"{DataDumpPath}/Lotus", default, itemName => itemName.EndsWith("Blueprint"));
 
         Console.WriteLine($">{string.Join(" & ", recipeNames)}");
     }
